@@ -1,0 +1,218 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Face Attendance - Windows-friendly</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; margin: 16px; line-height:1.4; }
+    h2 { margin-bottom: 8px; }
+    section { margin-bottom: 18px; }
+    #video { border: 1px solid #ccc; display:block; background:#000; width:480px; height:360px; }
+    .small { font-size: 0.9rem; color:#555; }
+    pre { background:#f7f7f7; padding:8px; border:1px solid #eee; max-width:900px; overflow:auto; }
+    #status { margin-top:8px; font-weight:600; }
+    button { margin-top:6px; }
+  </style>
+</head>
+<body>
+  <h2>Face Attendance - Windows-friendly (client-side embeddings)</h2>
+
+  <section>
+    <h3>Register Student</h3>
+    <div>
+      <input id="regName" placeholder="Name" />&nbsp;
+      <input id="regId" placeholder="Student ID" />
+      <button id="regBtn">Capture & Register</button>
+    </div>
+    <div id="regResult" class="small"></div>
+  </section>
+
+  <hr/>
+
+  <section>
+    <h3>Check-in (Webcam)</h3>
+    <video id="video" autoplay muted playsinline></video>
+    <div style="margin-top:8px;">
+      <button id="checkinBtn">Capture & Check-in</button>
+      <span id="status" class="small">Initializing…</span>
+    </div>
+    <div id="checkinResult" style="margin-top:8px;"></div>
+  </section>
+
+  <hr/>
+  <section>
+    <h3>Attendance Records</h3>
+    <button id="refresh">Refresh Attendance</button>
+    <pre id="att"></pre>
+  </section>
+
+  <!-- Use a reliable CDN for face-api.js -->
+  <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
+  <script>
+  // ---------- Configuration ----------
+  const MODEL_URL = 'https://justadudewhohacks.github.io/face-api.js/models/';
+  const BACKEND_BASE = 'http://localhost:8000';   // backend API
+
+  // ---------- Utilities & UI refs ----------
+  const video = document.getElementById('video');
+  const statusEl = document.getElementById('status');
+  const regResult = document.getElementById('regResult');
+  const checkinResult = document.getElementById('checkinResult');
+  const attEl = document.getElementById('att');
+
+  function logStatus(text) {
+    statusEl.innerText = text;
+    console.log('[STATUS]', text);
+  }
+
+  function safeFetchJson(url, options) {
+    return fetch(url, options).then(r => r.json());
+  }
+
+  // ---------- Model loading & camera ----------
+  async function loadModels() {
+    if (typeof faceapi === 'undefined') {
+      throw new Error('faceapi library not loaded (check CDN)');
+    }
+    logStatus('Loading models...');
+    // tinyFaceDetector (fast), faceRecognition, faceLandmarks
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+    logStatus('Models loaded');
+  }
+
+  async function startCamera() {
+    logStatus('Starting camera…');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
+      await video.play();
+      logStatus('Camera started');
+      return true;
+    } catch (err) {
+      console.error('Camera error', err);
+      logStatus('Camera error: ' + (err.message || err.name));
+      alert('Camera error: ' + (err.message || err.name) + '\nMake sure you allowed camera and using http://localhost:5500');
+      return false;
+    }
+  }
+
+  // Get face descriptor from current video frame (single face)
+  async function getDescriptorFromVideo() {
+    if (typeof faceapi === 'undefined') {
+      throw new Error('faceapi not loaded');
+    }
+    // detectSingleFace + landmarks + descriptor
+    const detection = await faceapi
+      .detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks()
+      .withFaceDescriptor();
+    if (!detection) return null;
+    return detection.descriptor; // Float32Array
+  }
+
+  // ---------- Page startup: wait for window load and then initialize ----------
+  window.addEventListener('load', async () => {
+    // confirm library presence
+    if (typeof faceapi === 'undefined') {
+      console.error('faceapi is not defined. CDN failed to load.');
+      logStatus('face-api.js failed to load. Check network / CDN or use local copy.');
+      return;
+    }
+
+    // Load models then start camera
+    try {
+      await loadModels();
+    } catch (err) {
+      console.error('Model load failed', err);
+      logStatus('Model load failed: ' + (err.message || err));
+      // We still attempt to start camera for debugging
+      await startCamera();
+      return;
+    }
+
+    // After models loaded, start camera
+    await startCamera();
+  });
+
+  // ---------- Registration flow ----------
+  document.getElementById('regBtn').addEventListener('click', async () => {
+    regResult.innerText = '';
+    const name = document.getElementById('regName').value.trim();
+    const emp = document.getElementById('regId').value.trim();
+    if (!name || !emp) {
+      alert('Enter name and student id');
+      return;
+    }
+
+    logStatus('Capturing face for registration…');
+    const desc = await getDescriptorFromVideo();
+    if (!desc) {
+      regResult.innerText = 'No face detected — make sure face is centered and well lit';
+      logStatus('No face detected while registering');
+      return;
+    }
+
+    regResult.innerText = 'Sending descriptor to backend…';
+    try {
+      const payload = { name, emp_id: emp, descriptor: Array.from(desc) };
+      const res = await safeFetchJson(BACKEND_BASE + '/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      regResult.innerText = JSON.stringify(res, null, 2);
+      logStatus('Registration response received');
+    } catch (err) {
+      console.error('Register fetch failed', err);
+      regResult.innerText = 'Register failed: ' + (err.message || err);
+    }
+  });
+
+  // ---------- Check-in flow ----------
+  document.getElementById('checkinBtn').addEventListener('click', async () => {
+    checkinResult.innerText = '';
+    logStatus('Capturing face for check-in…');
+    const desc = await getDescriptorFromVideo();
+    if (!desc) {
+      checkinResult.innerText = 'No face detected — try again in good lighting';
+      logStatus('No face detected for check-in');
+      return;
+    }
+
+    try {
+      const payload = { descriptor: Array.from(desc), camera_id: 'webcam' };
+      const res = await safeFetchJson(BACKEND_BASE + '/checkin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      checkinResult.innerText = JSON.stringify(res, null, 2);
+      logStatus('Check-in response received');
+    } catch (err) {
+      console.error('Checkin fetch failed', err);
+      checkinResult.innerText = 'Check-in failed: ' + (err.message || err);
+    }
+  });
+
+  // ---------- Refresh attendance ----------
+  document.getElementById('refresh').addEventListener('click', async () => {
+    attEl.innerText = 'Loading…';
+    try {
+      const res = await safeFetchJson(BACKEND_BASE + '/attendance');
+      attEl.innerText = JSON.stringify(res, null, 2);
+      logStatus('Attendance loaded');
+    } catch (err) {
+      console.error('Attendance fetch failed', err);
+      attEl.innerText = 'Failed to load attendance: ' + (err.message || err);
+    }
+  });
+
+  // ---------- Optional: quick manual camera-check helper ----------
+  // You can call navigator.mediaDevices.getUserMedia from console to debug camera permissions
+  </script>
+</body>
+</html>
