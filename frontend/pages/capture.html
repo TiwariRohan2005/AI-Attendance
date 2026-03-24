@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <h2>Capture Attendance</h2>
+
+    <video id="video" autoplay muted></video>
+
+    <p id="status">Scanning...</p>
+
+    <!-- ✅ SUCCESS BOX -->
+    <div class="success-box" id="successBox">
+      <span>✔</span>
+      <p id="userText"></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/face.js"></script>
+
+<script>
+const video = document.getElementById("video");
+
+async function init() {
+  await loadModels();
+  await startCamera(video);
+  autoScan();
+}
+
+async function autoScan() {
+  setInterval(async () => {
+    const desc = await getDescriptor(video);
+    if (!desc) return;
+
+    const res = await checkin({
+      descriptor: Array.from(desc)
+    });
+
+    if (res.status === "marked") {
+      document.getElementById("status").innerText = "Attendance Captured";
+
+      document.getElementById("successBox").style.display = "block";
+      document.getElementById("userText").innerText =
+        "Welcome " + res.name;
+
+      setTimeout(() => {
+        document.getElementById("successBox").style.display = "none";
+      }, 3000);
+    }
+  }, 3000);
+}
+
+init();
+</script>
+
+</body>
+</html>

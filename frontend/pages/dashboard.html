@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<div style="text-align:center; padding:10px; border-bottom:2px solid red;">
+  <h2>AI Biometric Attendance System</h2>
+</div>
+
+<div style="text-align:center; margin:20px;">
+  <button onclick="location.href='register.html'">Register Student</button>
+  <button onclick="location.href='capture.html'">Capture Attendance</button>
+</div>
+
+<table id="table" style="width:90%; margin:auto;"></table>
+
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+
+<script>
+async function load() {
+  const data = await fetchAttendance();
+
+  let html = "<tr><th>Name</th><th>Date & Time</th></tr>";
+
+  data.attendance.forEach(a => {
+    html += `<tr>
+      <td>${a[0]}</td>
+      <td>${new Date(a[2]).toLocaleString()}</td>
+    </tr>`;
+  });
+
+  document.getElementById("table").innerHTML = html;
+}
+
+load();
+</script>
+
+</body>
+</html>

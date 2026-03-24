@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+
+<div class="container">
+  <div class="card">
+    <h2>Register Student</h2>
+
+    <input id="name" placeholder="Name">
+    <input id="id" placeholder="Student ID">
+
+    <video id="video" autoplay muted></video>
+
+    <button onclick="register()">Capture & Register</button>
+
+    <div class="success-box" id="successBox">
+      <span>✔</span>
+      <p>Registered Successfully</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script src="../assets/js/auth.js"></script>
+<script src="../assets/js/api.js"></script>
+<script src="../assets/js/face.js"></script>
+
+<script>
+const video = document.getElementById("video");
+
+async function init() {
+  await loadModels();
+  await startCamera(video);
+}
+init();
+
+window.register = async function () {
+  const name = document.getElementById("name").value;
+  const id = document.getElementById("id").value;
+
+  const desc = await getDescriptor(video);
+  if (!desc) return alert("No face detected");
+
+  const res = await registerUser({
+    name: name,
+    emp_id: id,
+    descriptor: Array.from(desc)
+  });
+
+  document.getElementById("successBox").style.display = "block";
+};
+</script>
+
+</body>
+</html>

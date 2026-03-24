@@ -1,0 +1,88 @@
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #87CEEB, #4facfe); /* sky/sea blue */
+  color: #222;
+}
+
+/* Center layout */
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+/* Card (white + red border) */
+.card {
+  background: #ffffff;
+  border: 3px solid #ff4d4d; /* red line */
+  border-radius: 12px;
+  padding: 30px;
+  width: 350px;
+  text-align: center;
+  box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+/* Header */
+h2 {
+  margin-bottom: 20px;
+  color: #333;
+}
+
+/* Inputs */
+input {
+  width: 90%;
+  padding: 12px;
+  margin: 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* Buttons */
+button {
+  padding: 10px 20px;
+  margin-top: 15px;
+  border-radius: 6px;
+  border: none;
+  background: #4facfe;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: #007bff;
+  transform: scale(1.05);
+}
+
+/* Video */
+video {
+  width: 100%;
+  border-radius: 10px;
+  margin-top: 10px;
+  border: 2px solid #ff4d4d;
+}
+
+/* Status */
+#status {
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+/* Success box */
+.success-box {
+  margin-top: 15px;
+  padding: 12px;
+  border: 2px solid green;
+  border-radius: 8px;
+  display: none;
+  background: #f0fff4;
+}
+
+/* Tick */
+.success-box span {
+  font-size: 40px;
+  color: green;
+}
